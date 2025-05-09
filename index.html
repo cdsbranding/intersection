@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="en" >
+<head>
+  <meta charset="UTF-8">
+  <title>Untitled</title>
+  
+
+</head>
+<body>
+<!-- partial:index.partial.html -->
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>Gotas Expansivas con Sonido y Pausa</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.7.0/p5.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.7.0/addons/p5.sound.min.js"></script>
+</head>
+<body>
+  <script>
+    let drops = [];
+    let osc, env;
+    let intersectionState = {};
+    let nextID = 0;
+    let isPaused = false;
+    let lastIntersections = [];
+    const scale = [261.63, 293.66, 329.63, 392.00, 440.00]; // escala pentatónica
+
+    function setup() {
+      createCanvas(windowWidth, windowHeight);
+      background('#f4f4f4');
+      stroke(0);
+      strokeWeight(1);
+      noFill();
+
+      userStartAudio();
+      osc = new p5.Oscillator('sine');
+      osc.amp(0);
+      osc.start();
+
+      // Envelope: ataque 0.01s, decay 0.1s, sustain 0.5, release 0.39s (≈0.5s total)
+      env = new p5.Envelope(0.01, 0.1, 0.5, 0.39);
+      env.setRange(0.5, 0);
+    }
+
+    function draw() {
+      background('#f4f4f4');
+
+      // Actualizar y dibujar círculos
+      for (let d of drops) {
+        if (!isPaused) d.update();
+        d.display();
+      }
+
+      let currentIntersections = [];
+
+      for (let i = 0; i < drops.length; i++) {
+        for (let j = i + 1; j < drops.length; j++) {
+          let a = drops[i], b = drops[j];
+          let key = `${a.id}_${b.id}`;
+          let pts = getCircleIntersections(a, b);
+
+          if (pts.length) {
+            currentIntersections.push(...pts);
+
+            if (!intersectionState[key]) {
+              intersectionState[key] = true;
+              if (!isPaused) {
+                let note = random(scale);
+                osc.freq(note);
+                env.play(osc);
+              }
+            }
+          } else {
+            intersectionState[key] = false;
+          }
+        }
+      }
+
+      if (!isPaused) {
+        lastIntersections = currentIntersections;
+      }
+
+      for (let p of lastIntersections) {
+        fill(0);
+        noStroke();
+        circle(p.x, p.y, 12);
+        noFill();
+        stroke(0);
+      }
+    }
+
+    function mousePressed() {
+      if (!isPaused) drops.push(new ExpandingCircle(mouseX, mouseY));
+    }
+
+    function keyPressed() {
+      if (key === ' ') {
+        isPaused = !isPaused;
+      }
+    }
+
+    class ExpandingCircle {
+      constructor(x, y) {
+        this.x = x;
+        this.y = y;
+        this.radius = 0;
+        this.speed = 1.5;
+        this.id = nextID++;
+      }
+      update() {
+        this.radius += this.speed;
+      }
+      display() {
+        ellipse(this.x, this.y, this.radius * 2);
+      }
+    }
+
+    function getCircleIntersections(c1, c2) {
+      let dx = c2.x - c1.x;
+      let dy = c2.y - c1.y;
+      let d = sqrt(dx*dx + dy*dy);
+      if (d > c1.radius + c2.radius || d < abs(c1.radius - c2.radius) || d === 0) {
+        return [];
+      }
+      let a = (sq(c1.radius) - sq(c2.radius) + sq(d)) / (2 * d);
+      let h = sqrt(sq(c1.radius) - sq(a));
+      let xm = c1.x + (a * dx) / d;
+      let ym = c1.y + (a * dy) / d;
+      let xs1 = xm + (h * dy) / d;
+      let ys1 = ym - (h * dx) / d;
+      let xs2 = xm - (h * dy) / d;
+      let ys2 = ym + (h * dx) / d;
+      return [createVector(xs1, ys1), createVector(xs2, ys2)];
+    }
+
+    function windowResized() {
+      resizeCanvas(windowWidth, windowHeight);
+    }
+  </script>
+</body>
+</html>
+<!-- partial -->
+  
+</body>
+</html>
